@@ -50,6 +50,41 @@ class ServicioTest {
                 .expectComplete()
                 .verify();
     }
-    //Falta test de error
-    
+    //ERROR
+    @Test
+    void testTodosFiltros() {
+        Flux<String> source = servicio.buscarTodosFiltro();
+        Flux<String> error = source.concatWith(
+                Mono.error(new IllegalArgumentException("Mensaje de Error"))
+        );
+        StepVerifier
+                .create(error)
+                .expectNextCount(4)
+                .expectErrorMatches(throwable -> throwable instanceof IllegalArgumentException &&
+                        throwable.getMessage().equals("Mensaje de Error")
+                ).verify();
+    }
+
+    @Test
+    void testPostEjecucion() {
+        Flux<Integer> source = Flux.<Integer>create(emitter -> {
+            emitter.next(1);
+            emitter.next(2);
+            emitter.next(3);
+            emitter.complete();
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            emitter.next(4);
+        }).filter(number -> number % 2 == 0);
+        StepVerifier.create(source)
+                .expectNext(2)
+                .expectComplete()
+                .verifyThenAssertThat()
+                .hasDropped(4)
+                .tookLessThan(Duration.ofMillis(1050));
+        }
+
 }
